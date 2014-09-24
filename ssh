@@ -1,0 +1,50 @@
+ #!/bin/bash
+ SUCCESS=0
+ WRONG_ARGS=65
+ if [ $# -ne 2 ]
+ then
+  echo "Uso: `basename $0` user host"
+  echo "Es : `basename $0` myuser host.example_domian.com"
+  exit $WRONG_ARGS
+ fi
+ if [ ! -e "$HOME/.ssh/id_rsa.pub" ];
+ then
+ echo "missing rsa key:"
+ echo "run \"ssh-keygen -t rsa -b 2048\" and try again"
+ exit $WRONG_ARGS
+ else
+ echo rsa public key found
+ fi
+ #Creating check file
+ echo    "#!/bin/bash">check.key.sh
+ echo    "if test -n \"\`ls .*|grep ssh\`\"">>check.key.sh
+ echo    " then">>check.key.sh
+ echo    " if test -n \"\`grep \"`cat $HOME/.ssh/id_rsa.pub|cut -d " " -f2`\" .ssh/authorized_keys2\`\"">>check.key.sh
+ echo    "   then">>check.key.sh
+ echo    "   echo public key found">>check.key.sh
+ echo    "  else">>check.key.sh
+ echo    "   echo missing public key:">>check.key.sh
+ echo    "   echo putting public key on remote keyring">>check.key.sh
+ echo    "   cat id_rsa.pub >>.ssh/authorized_keys2">>check.key.sh
+ echo    "  fi">>check.key.sh
+ echo    "else">>check.key.sh
+ echo    "echo missind directory .ssh: creating ...">>check.key.sh
+ echo    " mkdir -p .ssh">>check.key.sh
+ echo    " echo creating remote keyring and copying public key ...">>check.key.sh
+ echo    " cp id_rsa.pub .ssh/authorized_keys2">>check.key.sh
+ echo    "fi">>check.key.sh
+ echo    " echo setting keyring permissions ...">>check.key.sh
+ echo    " chmod 600 .ssh/authorized_keys2">>check.key.sh
+ echo    " echo setting directory permissions">>check.key.sh
+ echo    " chmod 700 .ssh">>check.key.sh
+ echo    "echo check key finished">>check.key.sh
+ echo    "echo \"Please run the following to access the host again\"">>check.key.sh
+ echo    "echo ssh $1@$2">>check.key.sh
+ echo    "echo deleting check files ...">>check.key.sh
+ echo    "rm id_rsa.pub">>check.key.sh
+ echo    "rm check.key.sh">>check.key.sh
+ chmod +x check.key.sh
+ scp -p ~/.ssh/id_rsa.pub check.key.sh $1@$2:
+ rm check.key.sh 
+ ssh $1@$2 ./check.key.sh
+ ssh $1@$2
